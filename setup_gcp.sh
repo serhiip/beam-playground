@@ -4,6 +4,7 @@ set -eux
 
 # gcloud auth login --update-adc --no-launch-browser
 # gcloud config set project
+gcloud config set compute/region europe-west2
 
 CURDIR=$(dirname $0)
 CURPATH=$(realpath $CURDIR)
