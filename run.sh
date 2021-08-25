@@ -27,10 +27,13 @@ BUCKET_URL=gs://$(terraform output -raw data-bucket-name)
 
 popd
 
-echo "this is just a text with text written twice" > $INPUT_FILENAME && \
-    gsutil cp gs://dataflow-samples/shakespeare/kinglear.txt $BUCKET_URL/ && \
+gsutil cp gs://dataflow-samples/shakespeare/kinglear.txt $BUCKET_URL/ && \
     gsutil ls $BUCKET_URL/
 
-python3 ./test_pipeline.py --input $INPUT_FILENAME --output ./out.txt
-
-#python3 test_pipeline.py --input $BUCKET_URL/kinglear.txt --output $BUCKET_URL/counts --runner DataflowRunner --project $PROJECT --region $REGION --temp_location $BUCKET_URL/tmp/
+python3 test_pipeline.py \
+        --input $BUCKET_URL/kinglear.txt \
+        --output $BUCKET_URL/counts \
+        --runner DataflowRunner \
+        --project $PROJECT \
+        --region $REGION \
+        --temp_location $BUCKET_URL/tmp/
