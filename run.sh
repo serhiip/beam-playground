@@ -33,4 +33,4 @@ echo "this is just a text with text written twice" > $INPUT_FILENAME && \
 
 python3 ./test_pipeline.py --input $INPUT_FILENAME --output ./out.txt
 
-#python test_pipeline.py --input $BUCKET_URL/kinglear.txt --output $BUCKET_URL/counts --runner DataflowRunner --project $PROJECT --region $REGION --temp_location $BUCKET_URL/tmp/
+#python3 test_pipeline.py --input $BUCKET_URL/kinglear.txt --output $BUCKET_URL/counts --runner DataflowRunner --project $PROJECT --region $REGION --temp_location $BUCKET_URL/tmp/
