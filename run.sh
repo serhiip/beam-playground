@@ -12,8 +12,6 @@ REGION=$(gcloud config get-value compute/region)
 PROJECT=$(gcloud config get-value project)
 INPUT_FILENAME=$CURPATH/in.txt
 
-pip3 install -r $CURPATH/requirements.txt
-
 gcloud services enable dataflow.googleapis.com
 
 pushd $CURPATH/terraform && \

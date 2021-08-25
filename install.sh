@@ -15,3 +15,5 @@ sudo apt install -y -V libarrow-dev # For C++
 sudo apt install -y -V libarrow-glib-dev # For GLib (C)
 sudo apt install -y -V libarrow-dataset-dev # For Apache Arrow Dataset C++
 sudo apt install -y -V libarrow-flight-dev # For Apache Arrow Flight C++
+
+pip3 install -r ./requirements.txt
