@@ -9,7 +9,7 @@ CURDIR=$(dirname $0)
 K8S_ZONES=["\"europe-west6-a"\"]
 REGION=$(gcloud config get-value compute/region)
 PROJECT=$(gcloud config get-value project)
-INPUT_FILENAME=in.txt
+INPUT_FILENAME=$CURDIR/in.txt
 
 pip3 install -r $CURDIR/requirements.txt
 
