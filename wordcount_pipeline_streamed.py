@@ -12,6 +12,7 @@ from apache_beam.examples.wordcount_with_metrics import WordExtractingDoFn
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import GoogleCloudOptions, WorkerOptions
 
 
 def run(argv=None, save_main_session=True):
@@ -43,6 +44,13 @@ def run(argv=None, save_main_session=True):
     pipeline_options = PipelineOptions(pipeline_args)
     pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
     pipeline_options.view_as(StandardOptions).streaming = True
+    pipeline_options.view_as(GoogleCloudOptions).job_name = "streaming-wordcount-example"
+    pipeline_options.view_as(WorkerOptions).num_workers = 1
+    pipeline_options.view_as(WorkerOptions).max_num_workers = 2
+    pipeline_options.view_as(WorkerOptions).worker_machine_type = "f1-micro"
+    pipeline_options.view_as(WorkerOptions).disk_size_gb = 1
+    pipeline_options.view_as(WorkerOptions).worker_disk_type = "pd-standard"
+
     with beam.Pipeline(options=pipeline_options) as p:
 
         # Read from PubSub into a PCollection.
@@ -60,6 +68,7 @@ def run(argv=None, save_main_session=True):
         # Count the occurrences of each word.
         def count_ones(word_ones):
             (word, ones) = word_ones
+            print(word_ones)
             return (word, sum(ones))
 
         counts = (
