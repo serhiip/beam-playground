@@ -21,9 +21,9 @@ resource "google_pubsub_topic" "output_topic_words" {
 }
 
 output "wordcount-input-topic" {
-  value = google_storage_bucket.input_topic_words.name
+  value = google_pubsub_topic.input_topic_words.name
 }
 
 output "wordcount-output-topic" {
-  value = google_storage_bucket.output_topic_words.name
+  value = google_pubsub_topic.output_topic_words.name
 }
