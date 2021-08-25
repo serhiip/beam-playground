@@ -23,7 +23,7 @@ pushd $CURPATH/terraform && \
               -var="region=$REGION" \
               -auto-approve
 
-BUCKET_URL=gs://$(terraform output data-bucket-name)
+BUCKET_URL=gs://$(terraform output -raw data-bucket-name)
 
 popd
 
