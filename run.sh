@@ -25,11 +25,11 @@ pushd $CURPATH/terraform && \
 
 BUCKET_URL=gs://$(terraform output data-bucket-name)
 
+popd
+
 echo "this is just a text with text written twice" > $INPUT_FILENAME && \
     gsutil cp gs://dataflow-samples/shakespeare/kinglear.txt $BUCKET_URL/ && \
     gsutil ls $BUCKET_URL/
-
-popd
 
 python3 ./test_pipeline.py --input $INPUT_FILENAME --output ./out.txt
 
