@@ -49,7 +49,6 @@ def run(argv=None, save_main_session=True):
     pipeline_options.view_as(WorkerOptions).max_num_workers = 2
     pipeline_options.view_as(WorkerOptions).machine_type = "f1-micro"
     pipeline_options.view_as(WorkerOptions).disk_size_gb = 1
-    pipeline_options.view_as(WorkerOptions).disk_type = "pd-standard"
 
     with beam.Pipeline(options=pipeline_options) as p:
 
