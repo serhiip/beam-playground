@@ -12,8 +12,19 @@ popd
 
 source $CURPATH/venv/bin/activate
 
-gsutil cp gs://dataflow-samples/shakespeare/kinglear.txt $BUCKET_URL/ && \
+gsutil cp gs://dataflow-samples/shakespeare/kinglear.txt $CURPATH/kinglear.txt
+
+for run in {1..10}; do
+  cat $CURPATH/kinglear.txt > /tmp/kinglear.txt && cat /tmp/kinglear.txt >> kinglear.txt
+done
+
+ls -lah $CURPATH/kinglear.txt
+
+gsutil cp $CURPATH/kinglear.txt $BUCKET_URL/ && \
     gsutil ls $BUCKET_URL/
+
+rm $CURPATH/kinglear.txt
+rm /tmp/kinglear.txt
 
 python3 $CURPATH/test_pipeline.py \
         --input $BUCKET_URL/kinglear.txt \

@@ -3,18 +3,20 @@
 import argparse
 import logging
 import re
+from typing import List
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import GoogleCloudOptions, WorkerOptions
 
 
 class WordExtractingDoFn(beam.DoFn):
     """Parse each line of input text into words."""
 
-    def process(self, element):
+    def process(self, elements: List[str]):
         """Returns an iterator over the words of this element.
 
         The element is a line of text.  If the line is blank, note that, too.
@@ -25,7 +27,7 @@ class WordExtractingDoFn(beam.DoFn):
         Returns:
         The processed element.
         """
-        return re.findall(r'[\w\']+', element, re.UNICODE)
+        return [re.findall(r'[\w\']+', element, re.UNICODE) for element in elements]
 
 
 def run(argv=None, save_main_session=True):
@@ -47,17 +49,23 @@ def run(argv=None, save_main_session=True):
     # workflow rely on global context (e.g., a module imported at module level).
     pipeline_options = PipelineOptions(pipeline_args)
     pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
+    pipeline_options.view_as(GoogleCloudOptions).job_name = "batch-wordcount-example"
+    pipeline_options.view_as(WorkerOptions).num_workers = 1
+    pipeline_options.view_as(WorkerOptions).max_num_workers = 1
+    pipeline_options.view_as(WorkerOptions).machine_type = "e2-small"
+    pipeline_options.view_as(WorkerOptions).disk_size_gb = 0
 
     # The pipeline will be run on exiting the with block.
     with beam.Pipeline(options=pipeline_options) as p:
 
         # Read the text file[pattern] into a PCollection.
-        lines = p | 'Read' >> ReadFromText(known_args.input)
+        lines = p | ('Read' >> ReadFromText(known_args.input)).with_output_types(List[str])
 
         counts = (
             lines
-            | 'Split' >> (beam.ParDo(WordExtractingDoFn()).with_output_types(str))
-            | 'PairWIthOne' >> beam.Map(lambda x: (x, 1))
+            | 'CreateBatch' >> beam.BatchElements(10000)
+            | 'Split' >> (beam.ParDo(WordExtractingDoFn()).with_output_types(List[List[str]]))
+            | 'PairWithOne' >> beam.FlatMap(lambda words: [(str(w), 1) for w in words])
             | 'GroupAndSum' >> beam.CombinePerKey(sum))
 
         # Format the counts into a PCollection of strings.
