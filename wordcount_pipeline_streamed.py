@@ -5,14 +5,59 @@
 
 import argparse
 import logging
+import re
+import time
 
 import apache_beam as beam
 import apache_beam.transforms.window as window
-from apache_beam.examples.wordcount_with_metrics import WordExtractingDoFn
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions, WorkerOptions
+from apache_beam.metrics import Metrics
+
+
+class WordExtractingDoFn(beam.DoFn):
+  """Parse each line of input text into words."""
+  def __init__(self):
+    # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
+    # super(WordExtractingDoFn, self).__init__()
+    beam.DoFn.__init__(self)
+    self.words_counter = Metrics.counter(self.__class__, 'words')
+    self.word_lengths_counter = Metrics.counter(self.__class__, 'word_lengths')
+    self.word_lengths_dist = Metrics.distribution(
+        self.__class__, 'word_len_dist')
+    self.empty_line_counter = Metrics.counter(self.__class__, 'empty_lines')
+    self.latency_dist = Metrics.distribution(self.__class__, 'arrival_latency_dist')
+
+  def process(self, element):
+    """Returns an iterator over the words of this element.
+
+    The element is a line of text.  If the line is blank, note that, too.
+
+    Asssimes the first "word" is actually a unix timestamp
+
+    Args:
+      element: the element being processed
+
+    Returns:
+      The processed element.
+    """
+    text_line = element.strip()
+    if not text_line:
+      self.empty_line_counter.inc(1)
+    words = re.findall(r'[\w\']+', text_line, re.UNICODE)
+    timestamp = words[0]
+    try:
+      timestamp = int(timestamp)
+      self.latency_dist.update(int(time.time()) - timestamp)
+    except Exception as e:
+      logging.exception(e)
+    for w in words[1:]:
+      self.words_counter.inc()
+      self.word_lengths_counter.inc(len(w))
+      self.word_lengths_dist.update(len(w))
+    return words
 
 
 def run(argv=None, save_main_session=True):
@@ -50,49 +95,50 @@ def run(argv=None, save_main_session=True):
     pipeline_options.view_as(WorkerOptions).machine_type = "e2-small"
     pipeline_options.view_as(WorkerOptions).disk_size_gb = 1
 
-    with beam.Pipeline(options=pipeline_options) as p:
+    p = beam.Pipeline(options=pipeline_options)
 
-        # Read from PubSub into a PCollection.
-        if known_args.input_subscription:
-            messages = p | beam.io.ReadFromPubSub(
-                subscription=known_args.input_subscription
-            ).with_output_types(bytes)
-        else:
-            messages = p | beam.io.ReadFromPubSub(
-                topic=known_args.input_topic
-            ).with_output_types(bytes)
+    # Read from PubSub into a PCollection.
+    if known_args.input_subscription:
+        messages = p | beam.io.ReadFromPubSub(
+            subscription=known_args.input_subscription
+        ).with_output_types(bytes)
+    else:
+        messages = p | beam.io.ReadFromPubSub(
+            topic=known_args.input_topic
+        ).with_output_types(bytes)
 
-        lines = messages | "decode" >> beam.Map(lambda x: x.decode("utf-8"))
+    lines = messages | "decode" >> beam.Map(lambda x: x.decode("utf-8"))
 
-        # Count the occurrences of each word.
-        def count_ones(word_ones):
-            (word, ones) = word_ones
-            print(word_ones)
-            return (word, sum(ones))
+    # Count the occurrences of each word.
+    def count_ones(word_ones):
+        (word, ones) = word_ones
+        return (word, sum(ones))
 
-        counts = (
-            lines
-            | "split" >> (beam.ParDo(WordExtractingDoFn()).with_output_types(str))
-            | "pair_with_one" >> beam.Map(lambda x: (x, 1))
-            | beam.WindowInto(window.FixedWindows(15, 0))
-            | "group" >> beam.GroupByKey()
-            | "count" >> beam.Map(count_ones)
-        )
+    counts = (
+        lines
+        | "extract" >> (beam.ParDo(WordExtractingDoFn()).with_output_types(str))
+        | "pair_with_one" >> beam.Map(lambda x: (x, 1))
+        | beam.WindowInto(window.FixedWindows(15, 0))
+        | "group" >> beam.GroupByKey()
+        | "count" >> beam.Map(count_ones)
+    )
 
-        # Format the counts into a PCollection of strings.
-        def format_result(word_count):
-            (word, count) = word_count
-            return "%s: %d" % (word, count)
+    # Format the counts into a PCollection of strings.
+    def format_result(word_count):
+        (word, count) = word_count
+        return "%s: %d" % (word, count)
 
-        output = (
-            counts
-            | "format" >> beam.Map(format_result)
-            | "encode" >> beam.Map(lambda x: x.encode("utf-8")).with_output_types(bytes)
-        )
+    output = (
+        counts
+        | "format" >> beam.Map(format_result)
+        | "encode" >> beam.Map(lambda x: x.encode("utf-8")).with_output_types(bytes)
+    )
 
-        # Write to PubSub.
-        # pylint: disable=expression-not-assigned
-        output | beam.io.WriteToPubSub(known_args.output_topic)
+    # Write to PubSub.
+    # pylint: disable=expression-not-assigned
+    output | beam.io.WriteToPubSub(known_args.output_topic)
+
+    p.run()
 
 
 if __name__ == "__main__":
