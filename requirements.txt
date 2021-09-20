@@ -1,4 +1,4 @@
-apache-beam==2.31.0
+apache-beam==2.32.0
 avro-python3==1.9.2.1
 cachetools==4.2.2
 certifi==2021.5.30

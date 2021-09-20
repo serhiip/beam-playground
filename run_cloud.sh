@@ -14,7 +14,7 @@ source $CURPATH/venv/bin/activate
 
 gsutil cp gs://dataflow-samples/shakespeare/kinglear.txt $CURPATH/kinglear.txt
 
-for run in {1..10}; do
+for run in {1..5}; do
   cat $CURPATH/kinglear.txt > /tmp/kinglear.txt && cat /tmp/kinglear.txt >> kinglear.txt
 done
 

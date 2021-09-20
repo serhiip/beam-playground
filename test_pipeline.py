@@ -30,24 +30,27 @@ class WordExtractingDoFn(beam.DoFn):
         return [re.findall(r'[\w\']+', element, re.UNICODE) for element in elements]
 
 
+class WordcountOptions(PipelineOptions):
+    @classmethod
+    def _add_argparse_args(cls, parser):
+        parser.add_value_provider_argument(
+            '--input',
+            type=str,
+            default='gs://dataflow-samples/shakespeare/kinglear.txt',
+            help='Path of the file to read from')
+        parser.add_value_provider_argument(
+            '--output',
+            type=str,
+            required=False,
+            help='Output file to write results to.')
+
+
 def run(argv=None, save_main_session=True):
     """Main entry point; defines and runs the wordcount pipeline."""
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        '--input',
-        dest='input',
-        default='gs://dataflow-samples/shakespeare/kinglear.txt',
-        help='Input file to process.')
-    parser.add_argument(
-        '--output',
-        dest='output',
-        required=True,
-        help='Output file to write results to.')
-    known_args, pipeline_args = parser.parse_known_args(argv)
-
     # We use the save_main_session option because one or more DoFn's in this
     # workflow rely on global context (e.g., a module imported at module level).
-    pipeline_options = PipelineOptions(pipeline_args)
+    pipeline_options = PipelineOptions()
+    wordcount_options = pipeline_options.view_as(WordcountOptions)
     pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
     pipeline_options.view_as(GoogleCloudOptions).job_name = "batch-wordcount-example"
     pipeline_options.view_as(WorkerOptions).num_workers = 1
@@ -56,28 +59,29 @@ def run(argv=None, save_main_session=True):
     pipeline_options.view_as(WorkerOptions).disk_size_gb = 0
 
     # The pipeline will be run on exiting the with block.
-    with beam.Pipeline(options=pipeline_options) as p:
+    p = beam.Pipeline(options=pipeline_options)
 
-        # Read the text file[pattern] into a PCollection.
-        lines = p | ('Read' >> ReadFromText(known_args.input)).with_output_types(List[str])
+    # Read the text file[pattern] into a PCollection.
+    lines = p | ('Read' >> ReadFromText(wordcount_options.input)).with_output_types(List[str])
 
-        counts = (
-            lines
-            | 'CreateBatch' >> beam.BatchElements(10000)
-            | 'Split' >> (beam.ParDo(WordExtractingDoFn()).with_output_types(List[List[str]]))
-            | 'PairWithOne' >> beam.FlatMap(lambda words: [(str(w), 1) for w in words])
-            | 'GroupAndSum' >> beam.CombinePerKey(sum))
+    counts = (
+        lines
+        | 'CreateBatch' >> beam.BatchElements(10000)
+        | 'Split' >> (beam.ParDo(WordExtractingDoFn()).with_output_types(List[List[str]]))
+        | 'PairWithOne' >> beam.FlatMap(lambda words: [(str(w), 1) for w in words])
+        | 'GroupAndSum' >> beam.CombinePerKey(sum))
 
-        # Format the counts into a PCollection of strings.
-        def format_result(word, count):
-            return '%s: %d' % (word, count)
+    # Format the counts into a PCollection of strings.
+    def format_result(word, count):
+        return '%s: %d' % (word, count)
 
-        output = counts | 'Format' >> beam.MapTuple(format_result)
+    output = counts | 'Format' >> beam.MapTuple(format_result)
 
-        # Write the output using a "Write" transform that has side effects.
-        # pylint: disable=expression-not-assigned
-        output | 'Write' >> WriteToText(known_args.output)
+    # Write the output using a "Write" transform that has side effects.
+    # pylint: disable=expression-not-assigned
+    output | 'Write' >> WriteToText(wordcount_options.output)
 
+    return p.run()
 
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)

@@ -15,6 +15,8 @@ OUTPUT_TOPIC=$(terraform output -raw wordcount-output-topic)
 
 popd
 
+source $CURPATH/venv/bin/activate
+
 INPUT_TOPIC_FULL="projects/$PROJECT/topics/$INPUT_TOPIC"
 
 python3 $CURPATH/wordcount_pipeline_streamed.py \
@@ -25,3 +27,5 @@ python3 $CURPATH/wordcount_pipeline_streamed.py \
   --input_topic $INPUT_TOPIC_FULL \
   --output_topic "projects/$PROJECT/topics/$OUTPUT_TOPIC" \
   --streaming
+
+deactivate
