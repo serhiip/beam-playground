@@ -3,30 +3,32 @@
 set -eux
 
 CURDIR=$(dirname $0)
-CURPATH=$(realpath $CURDIR)
+ROOT=$(realpath $CURDIR)
 REGION=$(gcloud config get-value compute/region)
 PROJECT=$(gcloud config get-value project)
-pushd $CURPATH/terraform
+pushd $ROOT/terraform
 BUCKET_URL=gs://$(terraform output -raw data-bucket-name)
 popd
 
-source $CURPATH/venv/bin/activate
+source $ROOT/venv/bin/activate
 
-gsutil cp gs://dataflow-samples/shakespeare/kinglear.txt $CURPATH/kinglear.txt
+pip install -r $ROOT/requirements.txt
+
+gsutil cp gs://dataflow-samples/shakespeare/kinglear.txt $ROOT/kinglear.txt
 
 for run in {1..5}; do
-  cat $CURPATH/kinglear.txt > /tmp/kinglear.txt && cat /tmp/kinglear.txt >> kinglear.txt
+  cat $ROOT/kinglear.txt > /tmp/kinglear.txt && cat /tmp/kinglear.txt >> kinglear.txt
 done
 
-ls -lah $CURPATH/kinglear.txt
+ls -lah $ROOT/kinglear.txt
 
-gsutil cp $CURPATH/kinglear.txt $BUCKET_URL/ && \
+gsutil cp $ROOT/kinglear.txt $BUCKET_URL/ && \
     gsutil ls $BUCKET_URL/
 
-rm $CURPATH/kinglear.txt
+rm $ROOT/kinglear.txt
 rm /tmp/kinglear.txt
 
-python3 $CURPATH/test_pipeline.py \
+python3 $ROOT/test_pipeline.py \
         --input $BUCKET_URL/kinglear.txt \
         --output $BUCKET_URL/counts \
         --runner DataflowRunner \

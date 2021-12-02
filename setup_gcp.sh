@@ -4,7 +4,7 @@ set -eux
 
 # gcloud auth login --update-adc --no-launch-browser
 # gcloud config set project
-gcloud config set compute/region europe-west2
+gcloud config set compute/region europe-west1
 
 CURDIR=$(dirname $0)
 CURPATH=$(realpath $CURDIR)
@@ -14,6 +14,7 @@ PROJECT=$(gcloud config get-value project)
 INPUT_FILENAME=$CURPATH/in.txt
 
 gcloud services enable dataflow.googleapis.com
+gcloud services enable composer.googleapis.com
 
 pushd $CURPATH/terraform && \
     terraform init && \
